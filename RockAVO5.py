@@ -8,6 +8,7 @@ from pyavo.seismodel import tuning_prestack as tp
 from pyavo.seismodel import wavelet
 from scipy.interpolate import interp1d
 import math
+import pandas as pd
 
 # Configure Streamlit page
 st.set_page_config(layout="wide")
