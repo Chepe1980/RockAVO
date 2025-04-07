@@ -10,7 +10,7 @@ import pandas as pd
 
 # Streamlit Setup
 st.set_page_config(layout="wide")
-st.title("🎯 Seismic Well Log Modeling App")
+st.title("🎯 AVO Rock Physics Modeling App")
 
 # Safe implementation of Zoeppritz equations with range checking
 def safe_rc_zoep(vp1, vs1, vp2, vs2, rho1, rho2, theta1):
@@ -112,12 +112,14 @@ vp = [layer1_vp, layer2_vp, layer3_vp]
 vs = [layer1_vs, layer2_vs, layer3_vs]
 rho = [layer1_density, layer2_density, layer3_density]
 
-# Generate synthetic seismic gather using AVO model and Zoeppritz
-min_plot_time = 0
-max_plot_time = 0.5  # Max time for plotting (e.g., 500 ms)
-lyr_times = np.cumsum(thickness)  # Layer times
-t = np.linspace(min_plot_time, max_plot_time, 500)  # Time axis
-excursion = 0.1  # Excursion factor for modeling AVO effects (example value)
+# Ensure correct time arrays
+lyr_times = np.cumsum(thickness)  # Time to each layer
+t = np.linspace(0, 0.5, 500)  # Time array for synthetic gather
+
+# Ensure correct definitions of vp_dig, vs_dig, and rho_dig
+vp_dig = np.array(vp)
+vs_dig = np.array(vs)
+rho_dig = np.array(rho)
 
 # Generate synthetic reflectivity using Zoeppritz equations for each layer
 syn_zoep = np.zeros((len(t), len(thickness)))  # Initialize the synthetic reflectivity matrix
@@ -131,13 +133,12 @@ for i in range(len(thickness)):
 
 # Ensure correct shape for input parameters to `syn_angle_gather`
 syn_zoep = np.array(syn_zoep)  # Ensure syn_zoep is a 2D array
-vp_dig = np.array(vp)  # Ensure vp_dig is a 1D array
 
 # Using the given function to plot the synthetic gather
-tp.syn_angle_gather(min_plot_time, max_plot_time, lyr_times, 
+tp.syn_angle_gather(0, 0.5, lyr_times, 
                     thickness, 0, len(thickness)-1,  # Define top and bottom layer indices
                     vp_dig, vs_dig, rho_dig, syn_zoep,  # Pass the syn_zoep reflectivity
-                    None, t, excursion)
+                    None, t, 0.1)
 
 # Main display tabs
 tab1, tab2, tab3 = st.tabs(["📊 Scatter Plots", "🎚️ Wavelet", "🔍 AVO Synthetic & Curves"])
@@ -178,5 +179,3 @@ with tab3:
     rpp = [safe_rc_zoep(vp[0], vs[0], vp[1], vs[1], rho[0], rho[1], angle) for angle in angles]
     
     st.line_chart(pd.DataFrame(rpp, columns=['Reflection Coefficient'], index=angles))
-
-
