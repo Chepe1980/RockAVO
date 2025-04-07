@@ -43,7 +43,7 @@ def safe_rc_zoep(vp1, vs1, vp2, vs2, rho1, rho2, theta1):
         D = E * F + G * H * p**2
         
         # PP reflection coefficient - CORRECTED with proper parentheses
-        Rpp = (1/D) * (F*(b*math.cos(theta1_rad)/vp1 - H*(a + d*math.cos(theta1_rad)/vp1 * math.cos(phi2)/vs2)) - 1
+        Rpp = (1/D) * (F*(b*math.cos(theta1_rad)/vp1 - H*(a + d*math.cos(theta1_rad)/vp1 * math.cos(phi2)/vs2))) - 1
         
         return Rpp
         
