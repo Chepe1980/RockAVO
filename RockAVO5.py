@@ -6,6 +6,7 @@ from pyavo.avotools import log_crossplot as log
 from io import StringIO
 import lasio
 import math
+import pandas as pd
 
 # Streamlit Setup
 st.set_page_config(layout="wide")
@@ -128,10 +129,14 @@ for i in range(len(thickness)):
         # Example values for reflectivity calculation (replace with actual layer properties)
         syn_zoep[j, i] = safe_rc_zoep(vp[i], vs[i], vp[(i+1)%len(vp)], vs[(i+1)%len(vs)], rho[i], rho[(i+1)%len(rho)], angle)
 
+# Ensure correct shape for input parameters to `syn_angle_gather`
+syn_zoep = np.array(syn_zoep)  # Ensure syn_zoep is a 2D array
+vp_dig = np.array(vp)  # Ensure vp_dig is a 1D array
+
 # Using the given function to plot the synthetic gather
 tp.syn_angle_gather(min_plot_time, max_plot_time, lyr_times, 
                     thickness, 0, len(thickness)-1,  # Define top and bottom layer indices
-                    vp, vs, rho, syn_zoep,  # Pass the syn_zoep reflectivity
+                    vp_dig, vs_dig, rho_dig, syn_zoep,  # Pass the syn_zoep reflectivity
                     None, t, excursion)
 
 # Main display tabs
@@ -173,6 +178,5 @@ with tab3:
     rpp = [safe_rc_zoep(vp[0], vs[0], vp[1], vs[1], rho[0], rho[1], angle) for angle in angles]
     
     st.line_chart(pd.DataFrame(rpp, columns=['Reflection Coefficient'], index=angles))
-
 
 
