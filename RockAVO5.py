@@ -54,19 +54,21 @@ with st.sidebar:
     st.header("⚙️ Parameters")
     uploaded_file = st.file_uploader("Upload LAS File", type=["las", "LAS"])
     
-    st.subheader("Layer Information")
-    num_layers = st.number_input("Number of Layers", min_value=1, max_value=10, value=3, step=1)
+    st.subheader("Layer Information (3-Layer Model)")
+    layer1_thickness = st.number_input("Layer 1 Thickness (m)", min_value=1, value=10)
+    layer1_vp = st.number_input("Layer 1 Vp (m/s)", min_value=1000, value=2500)
+    layer1_vs = st.number_input("Layer 1 Vs (m/s)", min_value=500, value=1200)
+    layer1_density = st.number_input("Layer 1 Density (g/cc)", min_value=1.5, value=2.5)
     
-    # Define text inputs for each layer's properties
-    layer_info = []
-    for i in range(num_layers):
-        st.subheader(f"Layer {i+1}")
-        thickness = st.number_input(f"Layer {i+1} Thickness (m)", min_value=1, value=10)
-        vp = st.number_input(f"Layer {i+1} Vp (m/s)", min_value=1000, value=2500)
-        vs = st.number_input(f"Layer {i+1} Vs (m/s)", min_value=500, value=1200)
-        density = st.number_input(f"Layer {i+1} Density (g/cc)", min_value=1.5, value=2.5)
-        
-        layer_info.append((thickness, vp, vs, density))
+    layer2_thickness = st.number_input("Layer 2 Thickness (m)", min_value=1, value=10)
+    layer2_vp = st.number_input("Layer 2 Vp (m/s)", min_value=1000, value=3000)
+    layer2_vs = st.number_input("Layer 2 Vs (m/s)", min_value=500, value=1400)
+    layer2_density = st.number_input("Layer 2 Density (g/cc)", min_value=1.5, value=2.7)
+    
+    layer3_thickness = st.number_input("Layer 3 Thickness (m)", min_value=1, value=10)
+    layer3_vp = st.number_input("Layer 3 Vp (m/s)", min_value=1000, value=3500)
+    layer3_vs = st.number_input("Layer 3 Vs (m/s)", min_value=500, value=1600)
+    layer3_density = st.number_input("Layer 3 Density (g/cc)", min_value=1.5, value=2.8)
 
 # Process LAS file or use synthetic data
 if uploaded_file:
@@ -103,56 +105,74 @@ else:
     vs_well = np.divide(vp_well, 1.7)
     gr_well = np.random.normal(50, 10, 100)
 
-# Now, let's modify the seismic gather plotting
-# We'll collect the values for each layer to build the synthetic gather model
-thickness, vp, vs, rho = zip(*layer_info)
-
-# Create synthetic model (Adjust based on user input)
-# Use predefined minimum and maximum values for angle (for simplicity)
-min_plot_time = 0
-max_plot_time = 0.5  # Max time for plotting (e.g., 500 ms)
+# Create synthetic model
+thickness = [layer1_thickness, layer2_thickness, layer3_thickness]
+vp = [layer1_vp, layer2_vp, layer3_vp]
+vs = [layer1_vs, layer2_vs, layer3_vs]
+rho = [layer1_density, layer2_density, layer3_density]
 
 # Generate synthetic seismic gather using AVO model and Zoeppritz
-lyr_times = np.cumsum(thickness)  # Calculate the layer time (this is a simple cumulative sum)
+min_plot_time = 0
+max_plot_time = 0.5  # Max time for plotting (e.g., 500 ms)
+lyr_times = np.cumsum(thickness)  # Layer times
 t = np.linspace(min_plot_time, max_plot_time, 500)  # Time axis
 excursion = 0.1  # Excursion factor for modeling AVO effects (example value)
+
+# Generate synthetic reflectivity using Zoeppritz equations for each layer
+syn_zoep = np.zeros((len(t), len(thickness)))  # Initialize the synthetic reflectivity matrix
+
+# Generate synthetic reflectivity for each layer
+for i in range(len(thickness)):
+    angle_range = np.arange(0, 45, 5)  # Simple angle range from 0 to 45 degrees
+    for j, angle in enumerate(angle_range):
+        # Example values for reflectivity calculation (replace with actual layer properties)
+        syn_zoep[j, i] = safe_rc_zoep(vp[i], vs[i], vp[(i+1)%len(vp)], vs[(i+1)%len(vs)], rho[i], rho[(i+1)%len(rho)], angle)
 
 # Using the given function to plot the synthetic gather
 tp.syn_angle_gather(min_plot_time, max_plot_time, lyr_times, 
                     thickness, 0, len(thickness)-1,  # Define top and bottom layer indices
-                    vp, vs, rho, None,  # Assuming syn_zoep and rc_zoep are not required in this context
+                    vp, vs, rho, syn_zoep,  # Pass the syn_zoep reflectivity
                     None, t, excursion)
 
-# Plotting synthetic gather using the defined function
-st.subheader("Synthetic Seismic Gather Model")
-st.pyplot(plt)
+# Main display tabs
+tab1, tab2, tab3 = st.tabs(["📊 Scatter Plots", "🎚️ Wavelet", "🔍 AVO Synthetic & Curves"])
 
-# Next part: Add the AVO (Amplitude Versus Offset) Economic Curves
-st.subheader("AVO Economic Curves")
+with tab1:
+    st.subheader("Scatter Plots")
+    
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(15, 6))
+    
+    # Vp vs Vs colored by Density
+    sc1 = ax1.scatter(vp_well, vs_well, c=rho_well, cmap='viridis')
+    plt.colorbar(sc1, ax=ax1, label='Density (g/cc)')
+    ax1.set_xlabel('Vp (m/s)')
+    ax1.set_ylabel('Vs (m/s)')
+    ax1.set_title('Vp vs Vs')
+    
+    # AI vs Porosity colored by GR
+    ai = vp_well * rho_well
+    sc2 = ax2.scatter(ai, gr_well, c=gr_well, cmap='plasma')
+    plt.colorbar(sc2, ax=ax2, label='Gamma Ray')
+    ax2.set_xlabel('Acoustic Impedance (AI)')
+    ax2.set_ylabel('Gamma Ray')
+    ax2.set_title('AI vs Gamma Ray')
+    
+    st.pyplot(fig)
 
-# Calculate and plot AVO curves
-# AVO economic curves usually involve plotting reflectivity (Rpp) vs. angle or offset.
-# Let's plot synthetic AVO curves using the Zoeppritz reflectivity model for different layers.
+with tab2:
+    st.subheader("Wavelet")
+    st.write("Display a synthetic or loaded wavelet.")
+    # You can add wavelet generation code here if needed.
 
-# Let's use the Zoeppritz reflectivity calculation model to plot the AVO curves
-def plot_avo_curves(vp1, vs1, vp2, vs2, rho1, rho2, angles):
-    rc_values = []
-    for angle in angles:
-        rc = safe_rc_zoep(vp1, vs1, vp2, vs2, rho1, rho2, angle)
-        rc_values.append(rc)
-    return rc_values
+with tab3:
+    st.subheader("AVO Synthetic & Curves")
+    # Add AVO curve plotting here based on Zoeppritz reflectivity
+    # Use the previous `safe_rc_zoep` function to generate reflection coefficients
+    # Plot AVO curves across different angles
+    angles = np.linspace(0, 40, 9)
+    rpp = [safe_rc_zoep(vp[0], vs[0], vp[1], vs[1], rho[0], rho[1], angle) for angle in angles]
+    
+    st.line_chart(pd.DataFrame(rpp, columns=['Reflection Coefficient'], index=angles))
 
-# Example: Calculate and plot AVO for the first two layers (user-defined)
-angles = np.arange(0, 45, 5)  # Angles from 0 to 45 degrees
-rc_layer1 = plot_avo_curves(vp[0], vs[0], vp[1], vs[1], rho[0], rho[1], angles)
-
-# Plot AVO curves
-plt.figure(figsize=(8, 6))
-plt.plot(angles, rc_layer1, label="Layer 1 to Layer 2", color="blue")
-plt.xlabel("Angle (degrees)")
-plt.ylabel("Reflection Coefficient (Rpp)")
-plt.title("AVO Curves")
-plt.legend()
-st.pyplot(plt)
 
 
